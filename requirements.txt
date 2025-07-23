@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+paddleocr
+paddlepaddle
+pdf2image
+python-multipart
+
