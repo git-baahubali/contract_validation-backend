@@ -12,7 +12,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://localhost:3000", "https://127.0.0.1:4000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -26,42 +26,50 @@ async def root():
 ocr = paddleocr.PaddleOCR(
     use_doc_orientation_classify=False,
     use_doc_unwarping=False,
-    use_textline_orientation=False
+    use_textline_orientation=False,
+    # use_gpu=True
 )
 
 @app.post("/upload-pdf/")
 async def upload_pdf(file: UploadFile = File(...)):
-    print(f"PDF received: {file.filename}")
+    print(f"--- New request received for file: {file.filename} ---")
     if not file.filename.endswith(".pdf"):
+        print("Error: File is not a PDF.")
         return JSONResponse(status_code=400, content={"message": "Please upload a PDF file."})
 
     try:
+        print("Step 1: Reading PDF content...")
         pdf_contents = await file.read()
+        print("Step 2: Converting PDF to images...")
         images = convert_from_bytes(pdf_contents)
+        print(f"Step 3: PDF converted to {len(images)} image(s).")
 
         all_page_results = []
         for i, image in enumerate(images):
+            print(f"\n--- Processing page {i + 1} ---")
             image_path = f"temp_{uuid.uuid4()}.png"
+            print(f"Step 4: Saving page {i + 1} to temporary image: {image_path}")
             image.save(image_path, "PNG")
 
-            # Perform OCR. `predict` returns a list of result objects for the page.
+            print(f"Step 5: Running OCR on page {i + 1}...")
             results_for_page = ocr.predict(input=image_path)
+            print(f"Step 6: OCR found {len(results_for_page)} text blocks on page {i + 1}.")
 
             page_content = []
-            # Each `res` is a result object for a detected text block
-            for res in results_for_page:
+            for j, res in enumerate(results_for_page):
+                print(f"  - Processing text block {j + 1} on page {i + 1}...")
                 with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as temp_json:
                     res.save_to_json(temp_json.name)
                     temp_json.seek(0)
                     text_block_data = json.load(temp_json)
                 page_content.append(text_block_data)
-                os.remove(temp_json.name) # Clean up the temp json for this block
+                os.remove(temp_json.name)
 
             all_page_results.append({f"page_{i+1}": page_content})
-
-            # Clean up the temporary image file
+            print(f"Step 7: Cleaning up temporary image file for page {i + 1}.")
             os.remove(image_path)
 
+        print("\nStep 8: All pages processed. Returning final JSON response.")
         return JSONResponse(status_code=200, content={"results": all_page_results})
 
     except Exception as e:
