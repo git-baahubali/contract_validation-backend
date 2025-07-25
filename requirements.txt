@@ -4,5 +4,5 @@ paddleocr
 paddlepaddle
 pdf2image
 python-multipart
-setuptools
 
+setuptools

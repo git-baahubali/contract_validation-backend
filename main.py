@@ -30,6 +30,12 @@ ocr = paddleocr.PaddleOCR(
     # use_gpu=True
 )
 
+# ocr = paddleocr.PPStructureV3(
+#     use_doc_orientation_classify=False,
+#     use_doc_unwarping=False
+# )
+
+
 @app.post("/upload-pdf/")
 async def upload_pdf(file: UploadFile = File(...)):
     print(f"--- New request received for file: {file.filename} ---")
@@ -41,7 +47,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         print("Step 1: Reading PDF content...")
         pdf_contents = await file.read()
         print("Step 2: Converting PDF to images...")
-        images = convert_from_bytes(pdf_contents)
+        images = convert_from_bytes(pdf_contents, dpi=300)
         print(f"Step 3: PDF converted to {len(images)} image(s).")
 
         all_page_results = []
@@ -78,3 +84,13 @@ async def upload_pdf(file: UploadFile = File(...)):
 
     # return JSONResponse(status_code=200, content={"results": all_results})
 
+
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Adjust to specific origins if needed
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
